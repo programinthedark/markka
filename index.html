@@ -6,7 +6,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Markka">
 <meta name="theme-color" content="#f7f6f2">
-<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>Markka</title>
 <style>
@@ -56,7 +55,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 let DATA, view, showAll = false;
 
 async function load() {
-  const hash = new URLSearchParams(location.hash.slice(1));
+  const hash = new URLSearchParams(location.search.slice(1) || location.hash.slice(1));
   if (hash.get('k')) { localStorage.setItem('markka-key', hash.get('k')); localStorage.setItem('markka-api', hash.get('u')); }
   const k = localStorage.getItem('markka-key'), u = localStorage.getItem('markka-api');
   if (!k || !u) { $('#msg').textContent = 'Open your personal install link once to unlock.'; return; }
