@@ -1,4 +1,4 @@
-const C = 'markka-v3';
+const C = 'markka-v4';
 self.addEventListener('install', e => e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'icon-180.png']))));
 self.addEventListener('fetch', e => {
   if (new URL(e.request.url).origin !== location.origin) return;
