@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Markka">
+<meta name="theme-color" content="#f7f6f2">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Markka</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f7f6f2;--ink:#141414;--mute:#76746e;--line:#e6e4dd;--accent:#1f5135;--warn:#9a3b1b}
+html,body{background:var(--bg)}
+body{color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:430px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 24px) 24px 48px}
+.serif{font-family:ui-serif,"New York",Georgia,serif;font-weight:400;letter-spacing:-.5px}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px}
+.brand{font-size:22px}
+.month{font-size:13px;color:var(--mute);display:flex;gap:14px;align-items:center}
+.month button{background:none;border:0;font:inherit;color:var(--ink);font-size:18px;padding:0 4px}
+.month button:disabled{color:var(--line)}
+.eyebrow{font-size:13px;color:var(--mute);margin-bottom:6px}
+.balance{font-size:56px;line-height:1}
+.balance small{font-size:28px;color:var(--mute)}
+.meta{margin-top:10px;font-size:14px;color:var(--mute)}
+.meta b{font-weight:500}.ok{color:var(--accent)}.over{color:var(--warn)}
+svg{display:block;margin:28px 0 8px;width:100%;height:auto}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-bottom:32px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:36px}
+.stat{padding:16px 0}.stat+.stat{padding-left:16px;border-left:1px solid var(--line)}
+.stat .k{font-size:12px;color:var(--mute)}.stat .v{font-size:22px;margin-top:2px}
+h2{font-size:20px;margin-bottom:14px}
+.sec{margin-bottom:36px}
+.cat{display:flex;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+.cat .l{flex:1}.cat .p{font-size:12px;color:var(--mute);margin-left:8px}
+.cat .a{width:64px;text-align:right;margin-left:20px;font-variant-numeric:tabular-nums}
+.track{height:3px;background:var(--line);margin-top:8px;border-radius:2px}
+.track i{display:block;height:100%;background:var(--ink);border-radius:2px}
+.t{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.mono{flex:none;width:38px;height:38px;border-radius:50%;background:#ecebe5;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#3d3c38}
+.t .w{flex:1;min-width:0}.t .w div{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t .w span{font-size:12px;color:var(--mute)}
+.t .amt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.t .amt span{display:block;font-size:12px;color:var(--mute)}
+.t .amt.in{color:var(--accent)}
+.more{display:block;width:100%;padding:14px;background:none;border:1px solid var(--line);border-radius:12px;font:inherit;color:var(--ink);margin-top:14px}
+.foot{font-size:12px;color:var(--mute);text-align:center}
+.gate{padding-top:30vh;text-align:center;color:var(--mute)}
+</style></head><body><div class="wrap" id="app"><div class="gate"><div class="brand serif" style="font-size:40px;color:var(--ink)">Markka</div><p id="msg" style="margin-top:12px">Loading…</p></div></div>
+<script>
+const $ = s => document.querySelector(s);
+const fmt = (n, d = 0) => (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString('en-CA', {minimumFractionDigits: d, maximumFractionDigits: d});
+const ymd = d => d.toISOString().slice(0, 10);
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let DATA, view, showAll = false;
+
+async function load() {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (hash.get('k')) { localStorage.setItem('markka-key', hash.get('k')); localStorage.setItem('markka-api', hash.get('u')); history.replaceState(null, '', location.pathname); }
+  const k = localStorage.getItem('markka-key'), u = localStorage.getItem('markka-api');
+  if (!k || !u) { $('#msg').textContent = 'Open your personal install link once to unlock.'; return; }
+  const cached = localStorage.getItem('markka-cache');
+  if (cached) { DATA = JSON.parse(cached); start(); }
+  try {
+    const res = await fetch(`https://script.google.com/macros/s/${u}/exec?key=${k}&t=${Date.now()}`);
+    const d = await res.json();
+    if (!d.ok) throw new Error('locked');
+    DATA = d; localStorage.setItem('markka-cache', JSON.stringify(d)); start();
+  } catch (e) { if (!DATA) $('#msg').textContent = 'Could not reach Markka. Check your connection.'; }
+}
+
+function start() {
+  if (!view) { const now = new Date(); view = {y: now.getFullYear(), m: now.getMonth()}; }
+  render();
+}
+
+function monthTx(y, m) {
+  const p = `${y}-${String(m + 1).padStart(2, '0')}`;
+  return DATA.txns.filter(t => t.date.startsWith(p));
+}
+
+function render() {
+  const {y, m} = view, today = new Date();
+  const isNow = y === today.getFullYear() && m === today.getMonth();
+  const days = new Date(y, m + 1, 0).getDate();
+  const dayN = isNow ? today.getDate() : days;
+  const tx = monthTx(y, m);
+  const spend = tx.filter(t => t.amount < 0 && !t.transfer);
+  const spent = -spend.reduce((s, t) => s + t.amount, 0);
+  const budget = DATA.budget.monthly;
+  const left = budget - spent;
+  const perDay = isNow ? Math.max(0, left) / Math.max(1, days - dayN + 1) : 0;
+  const pace = budget * dayN / days;
+  const onTrack = spent <= pace;
+
+  // daily cumulative line
+  const daily = Array(days + 1).fill(0);
+  spend.forEach(t => daily[+t.date.slice(8, 10)] += -t.amount);
+  let cum = 0; const pts = [];
+  const W = 342, H = 110, top = Math.max(budget, spent) * 1.05;
+  for (let d = 1; d <= dayN; d++) { cum += daily[d]; pts.push([(d - 1) / (days - 1) * W, H - 4 - cum / top * (H - 8)]); }
+  const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length - 1] || [0, H - 4];
+  const budgetY = H - 4 - budget / top * (H - 8);
+
+  // categories
+  const cats = {};
+  spend.forEach(t => cats[t.cat] = (cats[t.cat] || 0) - t.amount);
+  const catRows = Object.entries(cats).sort((a, b) => b[1] - a[1]).map(([c, a]) => {
+    const pc = spent ? Math.round(a / spent * 100) : 0;
+    return `<div class="cat"><div class="l">${c}<span class="p">${pc}%</span><div class="track"><i style="width:${pc}%"></i></div></div><span class="a">${fmt(a)}</span></div>`;
+  }).join('') || '<p class="foot" style="text-align:left">Nothing spent yet.</p>';
+
+  // stats
+  const todayStr = ymd(new Date(today - today.getTimezoneOffset() * 6e4));
+  const wkStart = new Date(today); wkStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const wk = ymd(new Date(wkStart - wkStart.getTimezoneOffset() * 6e4));
+  const sum = f => -DATA.txns.filter(t => t.amount < 0 && !t.transfer && f(t)).reduce((s, t) => s + t.amount, 0);
+  const trip = DATA.budget;
+  const tripSpent = sum(t => t.date >= trip.tripStart && t.date <= trip.tripEnd);
+  const third = todayStr >= trip.tripStart
+    ? ['Whole trip', fmt(tripSpent)]
+    : ['This month', fmt(spent)];
+
+  const list = [...tx].sort((a, b) => b.date.localeCompare(a.date));
+  const shown = showAll ? list : list.slice(0, 12);
+  const txRows = shown.map(t => {
+    const initials = t.merchant.replace(/[^A-Za-zÀ-ÿ ]/g, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '·';
+    const d = new Date(t.date + 'T12:00');
+    const when = t.date === todayStr ? 'Today' : `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+    const eur = t.eur ? `<span>€${Math.abs(t.eur).toFixed(2)}</span>` : '';
+    return `<div class="t"><div class="mono">${initials}</div><div class="w"><div>${t.merchant}</div><span>${when} · ${t.account}</span></div><div class="amt${t.amount > 0 ? ' in' : ''}">${t.amount > 0 ? '+' : ''}${fmt(Math.abs(t.amount), 2)}${eur}</div></div>`;
+  }).join('');
+
+  const first = DATA.txns.reduce((a, t) => t.date < a ? t.date : a, '9999');
+  const canPrev = `${y}-${String(m + 1).padStart(2, '0')}` > first.slice(0, 7);
+  const upd = new Date(DATA.updated);
+  const ago = Math.round((Date.now() - upd) / 6e4);
+  const agoTxt = ago < 60 ? `${ago} min ago` : ago < 1440 ? `${Math.round(ago / 60)} h ago` : upd.toLocaleDateString('en-CA');
+  const [whole, cents] = Math.abs(left).toFixed(2).split('.');
+
+  $('#app').innerHTML = `
+  <div class="nav"><div class="brand serif">Markka</div>
+    <div class="month"><button id="prev" ${canPrev ? '' : 'disabled'}>‹</button>${MONTHS[m]}<button id="next" ${isNow ? 'disabled' : ''}>›</button></div></div>
+  <div class="eyebrow">${left >= 0 ? (isNow ? 'Left to spend this month' : 'Left over') : 'Over budget'}</div>
+  <div class="balance serif ${left < 0 ? 'over' : ''}">${left < 0 ? '−' : ''}$${(+whole).toLocaleString('en-CA')}<small>.${cents}</small></div>
+  <div class="meta">${isNow ? `${fmt(perDay)} a day for ${days - dayN + 1} days · ` : `Spent ${fmt(spent)} of ${fmt(budget)} · `}<b class="${onTrack ? 'ok' : 'over'}">${onTrack ? 'On track' : 'Ahead of pace'}</b></div>
+  <svg viewBox="0 0 ${W} ${H}">
+    <line x1="0" y1="${H - 4}" x2="${W}" y2="${budgetY}" stroke="#d6d3ca" stroke-width="1.5" stroke-dasharray="3 4"/>
+    <path d="${path}" fill="none" stroke="#141414" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="4" fill="#141414"/>
+  </svg>
+  <div class="axis"><span>${MONTHS[m].slice(0, 3)} 1</span><span>Spent vs. ${fmt(budget)} budget</span><span>${MONTHS[m].slice(0, 3)} ${days}</span></div>
+  <div class="stats">
+    <div class="stat"><div class="k">Today</div><div class="v serif">${fmt(sum(t => t.date === todayStr))}</div></div>
+    <div class="stat"><div class="k">This week</div><div class="v serif">${fmt(sum(t => t.date >= wk))}</div></div>
+    <div class="stat"><div class="k">${third[0]}</div><div class="v serif">${third[1]}</div></div>
+  </div>
+  <div class="sec"><h2 class="serif">Where it went</h2>${catRows}</div>
+  <div class="sec"><h2 class="serif">Activity</h2>${txRows || '<p class="foot" style="text-align:left">No activity.</p>'}
+    ${list.length > 12 && !showAll ? `<button class="more" id="more">Show all ${list.length}</button>` : ''}</div>
+  <div class="foot">Synced ${agoTxt}</div>`;
+  $('#prev').onclick = () => { view.m--; if (view.m < 0) { view.m = 11; view.y--; } showAll = false; render(); scrollTo(0, 0); };
+  $('#next').onclick = () => { view.m++; if (view.m > 11) { view.m = 0; view.y++; } showAll = false; render(); scrollTo(0, 0); };
+  if ($('#more')) $('#more').onclick = () => { showAll = true; render(); };
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+load();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+</script></body></html>
