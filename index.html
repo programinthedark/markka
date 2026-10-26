@@ -57,7 +57,7 @@ let DATA, view, showAll = false;
 
 async function load() {
   const hash = new URLSearchParams(location.hash.slice(1));
-  if (hash.get('k')) { localStorage.setItem('markka-key', hash.get('k')); localStorage.setItem('markka-api', hash.get('u')); history.replaceState(null, '', location.pathname); }
+  if (hash.get('k')) { localStorage.setItem('markka-key', hash.get('k')); localStorage.setItem('markka-api', hash.get('u')); }
   const k = localStorage.getItem('markka-key'), u = localStorage.getItem('markka-api');
   if (!k || !u) { $('#msg').textContent = 'Open your personal install link once to unlock.'; return; }
   const cached = localStorage.getItem('markka-cache');
