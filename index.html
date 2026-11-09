@@ -46,6 +46,16 @@ h2{font-size:20px;margin-bottom:14px}
 .a.ok{color:var(--accent)}
 .more{display:block;width:100%;padding:14px;background:none;border:1px solid var(--line);border-radius:12px;font:inherit;color:var(--ink);margin-top:14px}
 .foot{font-size:12px;color:var(--mute);text-align:center}
+.card{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:#fbfaf7}
+.card summary{list-style:none;display:flex;align-items:center;gap:14px;padding:14px;cursor:pointer}
+.card summary::-webkit-details-marker{display:none}
+.card .w{flex:1;min-width:0}.card .w div{font-size:15px}.card .w span{font-size:12px;color:var(--mute)}
+.card .body{padding:0 14px 14px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.kv span:first-child{color:var(--mute)}.kv span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btns a{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--bg)}
+.btns a.sos{color:var(--warn);border-color:#e5c7bb}
 .gate{padding-top:30vh;text-align:center;color:var(--mute)}
 </style></head><body><div class="wrap" id="app"><div class="gate"><div class="brand serif" style="font-size:40px;color:var(--ink)">Markka</div><p id="msg" style="margin-top:12px">Loading…</p></div></div>
 <script>
@@ -98,6 +108,14 @@ function catRows(list) {
     const pc = total ? Math.round(a / total * 100) : 0;
     return `<div class="cat"><div class="l">${c}<span class="p">${pc}%</span><div class="track"><i style="width:${pc}%"></i></div></div><span class="a">${fmt(a)}</span></div>`;
   }).join('') || '<p class="foot" style="text-align:left">Nothing yet.</p>';
+}
+
+function tripCards(items) {
+  const esc = v => String(v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  return items.map(c => `<details class="card"><summary><div class="mono">${esc(c.icon || '·')}</div><div class="w"><div>${esc(c.title)}</div><span>${esc(c.sub || '')}</span></div><div style="color:var(--mute)">›</div></summary><div class="body">
+    ${(c.rows || []).map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}
+    ${(c.links || []).length ? `<div class="btns">${c.links.map(l => `<a href="${esc(l.href)}"${l.sos ? ' class="sos"' : ''}${/^https?:/.test(l.href) ? ' target="_blank" rel="noopener"' : ''}>${esc(l.label)}</a>`).join('')}</div>` : ''}
+  </div></details>`).join('');
 }
 
 function render() {
@@ -155,6 +173,7 @@ function render() {
     <div class="stat"><div class="k">In Europe</div><div class="v serif">${fmt(during)}</div></div>
     <div class="stat"><div class="k">Funding</div><div class="v serif">${fmt(won)}</div></div>
   </div>
+  ${(plan.trip || []).length ? `<div class="sec"><h2 class="serif">Trip</h2>${tripCards(plan.trip)}</div>` : ''}
   ${month}
   ${up.length ? `<div class="sec"><h2 class="serif">Still to pay</h2>${upRows}<p class="foot" style="text-align:left;margin-top:10px">≈ ${fmt(upTotal)} known so far</p></div>` : ''}
   <div class="sec"><h2 class="serif">Where it went</h2>${catRows(trip)}</div>
