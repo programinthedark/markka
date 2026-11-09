@@ -56,6 +56,15 @@ h2{font-size:20px;margin-bottom:14px}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .btns a{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--bg)}
 .btns a.sos{color:var(--warn);border-color:#e5c7bb}
+.seg{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;margin:4px 0 16px;background:#fbfaf7}
+.seg button{flex:1;border:0;background:none;font:inherit;font-size:13px;padding:6px 0;border-radius:999px;color:var(--mute)}
+.seg button.on{background:var(--ink);color:#fff}
+.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:6px 0 4px}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mute);margin-bottom:10px}
+.legend span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px}
+.big{font-size:34px;line-height:1}
+.note{font-size:12px;color:var(--mute)}
 .gate{padding-top:30vh;text-align:center;color:var(--mute)}
 </style></head><body><div class="wrap" id="app"><div class="gate"><div class="brand serif" style="font-size:40px;color:var(--ink)">Markka</div><p id="msg" style="margin-top:12px">Loading…</p></div></div>
 <script>
@@ -118,6 +127,32 @@ function tripCards(items) {
   </div></details>`).join('');
 }
 
+const PAL = ['#1f5135','#3d7a58','#6fa585','#a9c9b4','#c9a46a','#9a3b1b','#7d6b8f','#b8b3a7','#5b8fb0'];
+const SCEN = {lean: .75, normal: 1, comfy: 1.3};
+function livingBlock(L, rate, spent, upTotal, won, B) {
+  let sc = 'normal'; try { sc = localStorage.getItem('markka-scen') || 'normal'; } catch (e) {}
+  const k = SCEN[sc] || 1, months = L.months || 5;
+  const items = L.items.map((it, i) => ({...it, e: Math.round(it.eur * (it.flex ? k : 1)), c: PAL[i % PAL.length]}));
+  const eur = items.reduce((a, it) => a + it.e, 0), cad = Math.round(eur * rate);
+  const semester = cad * months, whole = Math.round(spent + upTotal + semester);
+  const bars = items.map(it => `<i style="width:${it.e / eur * 100}%;background:${it.c}"></i>`).join('');
+  const leg = items.map(it => `<span style="--c:${it.c}">${it.cat}</span>`).join('');
+  const rows = items.map(it => `<div class="cat"><div class="l">${it.cat}<span class="p">€${it.e}${it.flex ? '' : ' · fixed'}</span>${it.note ? `<div class="note">${it.note}</div>` : ''}</div><span class="a">${fmt(it.e * rate)}</span></div>`).join('');
+  const vs = B.monthly ? `<b class="${cad <= B.monthly ? 'ok' : 'over'}">${cad <= B.monthly ? fmt(B.monthly - cad) + ' under' : fmt(cad - B.monthly) + ' over'}</b> your ${fmt(B.monthly)}/mo budget` : '';
+  return `<div class="sec"><h2 class="serif">Living in Turku</h2>
+    <div class="seg">${Object.keys(SCEN).map(x => `<button data-s="${x}" class="${x === sc ? 'on' : ''}">${x[0].toUpperCase() + x.slice(1)}</button>`).join('')}</div>
+    <div class="eyebrow">A normal month</div><div class="big serif">${fmt(cad)} <small style="font-size:18px;color:var(--mute)">€${eur}</small></div>
+    <div class="meta">${vs}</div>
+    <div class="stack" style="margin-top:16px">${bars}</div><div class="legend">${leg}</div>
+    ${rows}
+    <div class="stats" style="margin-top:22px;margin-bottom:0">
+      <div class="stat"><div class="k">${months} months</div><div class="v serif">${fmt(semester)}</div></div>
+      <div class="stat"><div class="k">Whole trip</div><div class="v serif">${fmt(whole)}</div></div>
+      <div class="stat"><div class="k">vs funding</div><div class="v serif ${won - whole >= 0 ? 'ok' : 'over'}">${won - whole >= 0 ? '+' : '−'}${fmt(Math.abs(won - whole)).replace('−','')}</div></div>
+    </div>
+    <p class="foot" style="text-align:left;margin-top:10px">Whole trip = spent so far + still to pay + ${months} months of living. ${L.source || ''}</p></div>`;
+}
+
 function render() {
   const B = DATA.budget, plan = DATA.plan || {upcoming: [], funding: []}, rate = DATA.eurcad || 1.55;
   const today = new Date(), todayStr = localYmd(today);
@@ -175,6 +210,7 @@ function render() {
   </div>
   ${(plan.trip || []).length ? `<div class="sec"><h2 class="serif">Trip</h2>${tripCards(plan.trip)}</div>` : ''}
   ${month}
+  ${plan.living ? livingBlock(plan.living, rate, spent, upTotal, won, B) : ''}
   ${up.length ? `<div class="sec"><h2 class="serif">Still to pay</h2>${upRows}<p class="foot" style="text-align:left;margin-top:10px">≈ ${fmt(upTotal)} known so far</p></div>` : ''}
   <div class="sec"><h2 class="serif">Where it went</h2>${catRows(trip)}</div>
   <div class="sec"><h2 class="serif">Activity</h2>${shown.map(t => txRow(t, todayStr)).join('') || '<p class="foot" style="text-align:left">No activity.</p>'}
@@ -182,6 +218,7 @@ function render() {
   <div class="sec"><h2 class="serif">Funding</h2>${fundRows}<p class="foot" style="text-align:left;margin-top:10px">${fmt(won)} won${pending ? ` · ${fmt(pending)} pending` : ''} · ${won - spent - upTotal >= 0 ? 'covers' : 'short by ' + fmt(spent + upTotal - won) + ' for'} spending so far + known costs</p></div>
   <div class="foot">Synced ${ago < 60 ? ago + ' min ago' : Math.round(ago / 60) + ' h ago'}</div>`;
   if ($('#more')) $('#more').onclick = () => { showAll = true; render(); };
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { try { localStorage.setItem('markka-scen', b.dataset.s); } catch (e) {} render(); });
 }
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
